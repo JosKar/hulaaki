@@ -94,10 +94,14 @@ defmodule Hulaaki.Connection do
 
   @doc false
   def handle_call({:connect, message, opts}, _from, state) do
-    %{socket: socket} = open_tcp_socket(opts)
-    dispatch_message(socket, message)
-    Kernel.send state.client, {:sent, message}
-    {:reply, :ok, %{state | socket: socket} }
+    case open_tcp_socket(opts) do
+      {:ok, socket} ->
+        dispatch_message(socket, message)
+        Kernel.send state.client, {:sent, message}
+        {:reply, :ok, %{state | socket: socket} }
+      {:error, error} ->
+        {:reply, {:error, error}, state}
+    end
   end
 
   @doc false
@@ -144,9 +148,7 @@ defmodule Hulaaki.Connection do
     port     = opts |> Keyword.fetch!(:port)
     tcp_opts = [:binary, {:active, :once}, {:packet, :raw}]
 
-    {:ok, socket} = :gen_tcp.connect(host, port, tcp_opts, timeout)
-
-    %{socket: socket}
+    :gen_tcp.connect(host, port, tcp_opts, timeout)
   end
 
   defp close_tcp_socket(socket) do
